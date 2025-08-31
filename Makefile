@@ -15,10 +15,9 @@ fmt:
 lint:
 	bash -O globstar -c 'shellcheck -x bin/mona modules/**/*.sh'
 	shfmt -d bin modules recipes tests
-	ec
+	if command -v ec >/dev/null 2>&1; then ec; else echo "Install editorconfig-checker (ec) for EditorConfig validation: pip install editorconfig-checker"; fi
 
 test:
 	bats -r tests
 
 ci: lint test
-
