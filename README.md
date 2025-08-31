@@ -62,3 +62,12 @@ MIT — see [LICENSE](LICENSE).
 - `recipes/coolify-node.sh` — base + docker + coolify bootstrap (network/dirs)
 - `recipes/monitoring-node.sh` — base + docker + node_exporter + cAdvisor
 - `recipes/supabase-node.sh` — base + docker (hook para Supabase)
+
+
+## Project Installer (Wizard)
+Use the TUI option **“Instalar/Configurar Projeto (GitHub/Docker)”** to:
+- List or select a GitHub repo (Monynha-Softwares by default) and clone it
+- Or pull/run a Docker image quickly
+- Then MonaRepo detects common post‑clone actions (e.g., copy `.env.example`, `docker compose up -d`, `npm/pnpm/yarn install`, `make setup`, `supabase start`) and lets you run them step‑by‑step while logging output.
+
+Logs are stored in `~/.mona/logs` (or `$MONA_LOG_DIR`). `--dry-run` prints commands without executing.
