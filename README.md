@@ -25,13 +25,15 @@ sudo ./bin/mona
 
 ## Install
 
-Clone the repo and install dev deps:
+Clone the repo and install dev deps (ShellCheck, shfmt, BATS, optional editorconfig-checker):
 
 ```bash
 git clone https://github.com/Monynha-Softwares/MonaRepoTui.git
 cd MonaRepoTui
 make install-dev
 ```
+
+`make install-dev` includes the [EditorConfig Checker](https://github.com/editorconfig-checker/editorconfig-checker) (`ec`) for optional EditorConfig validation. If it's missing, `make lint` will remind you to install it.
 
 ### TUI dependency
 
