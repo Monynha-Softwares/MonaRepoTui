@@ -1,13 +1,12 @@
 SHELL := /bin/bash
 
-.PHONY: install-dev fmt lint test ci
+.PHONY: install-dev fmt lint test
 
 install-dev:
 	sudo apt-get update -y
 	sudo apt-get install -y shellcheck shfmt bats curl
-	pip install --upgrade pre-commit editorconfig-checker
+	pip install --upgrade pre-commit
 	pre-commit install --install-hooks
-	pre-commit install --hook-type pre-push --install-hooks
 
 fmt:
 	shfmt -w bin modules recipes tests
@@ -18,5 +17,3 @@ lint:
 
 test:
 	bats -r tests
-
-ci: lint test

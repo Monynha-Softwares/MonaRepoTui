@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # MonaRepo — Interactive TUI bootstrapper
-set -euo pipefail
+set -Eeuo pipefail
+IFS=$'\n\t'
 
 # Determine repo root early so other scripts can source helpers safely
 export MONA_BIN_PATH="$(readlink -f "$0")"
@@ -9,14 +10,14 @@ export MONA_DIR="$(cd "$(dirname "$MONA_BIN_PATH")/.." && pwd)"
 # shellcheck source=../lib/common.sh
 . "$MONA_DIR/lib/common.sh"
 
-VERSION="0.4.0"
+VERSION="$(cat "$MONA_DIR/VERSION")"
 
 # ------------------------------ Globals ------------------------------------
 export MONA_DRY_RUN="${MONA_DRY_RUN:-false}"
 export MONA_NONINTERACTIVE="${MONA_NONINTERACTIVE:-0}"
 
 # Arg parsing
-show_help() {
+usage() {
   cat <<EOF
 MonaRepo v$VERSION
 
@@ -31,20 +32,42 @@ Env:
 EOF
 }
 
-for a in "$@"; do
-  case "$a" in
-  --help)
-    show_help
+while getopts ':h-:v' opt; do
+  case "$opt" in
+  h)
+    usage
     exit 0
     ;;
-  --version)
+  v)
     echo "$VERSION"
     exit 0
     ;;
-  --dry-run) MONA_DRY_RUN=true ;;
-  *) ;;
+  -)
+    case "$OPTARG" in
+    help)
+      usage
+      exit 0
+      ;;
+    version)
+      echo "$VERSION"
+      exit 0
+      ;;
+    dry-run) MONA_DRY_RUN=true ;;
+    *)
+      log_error "Unknown option --$OPTARG"
+      usage >&2
+      exit 1
+      ;;
+    esac
+    ;;
+  \?)
+    log_error "Unknown option -$OPTARG"
+    usage >&2
+    exit 1
+    ;;
   esac
 done
+shift $((OPTIND - 1))
 
 MONA_TMP_DIR="${TMPDIR:-/tmp}/mona"
 mkdir -p "$MONA_TMP_DIR"
