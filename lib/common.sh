@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Common helpers for MonaRepo
 set -euo pipefail
 

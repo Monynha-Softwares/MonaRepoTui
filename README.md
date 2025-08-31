@@ -18,12 +18,34 @@ Use this as the starting point for Codex/agents to extend modules and recipes.
 # clone
 git clone <your-repo> monarepo && cd monarepo
 
-# (optional) add simple curses as submodule (or rely on runtime downloader in bin/mona)
-git submodule add https://github.com/metal3d/bashsimplecurses ui/bashsimplecurses
-git submodule update --init --recursive
+# install development dependencies and git hooks
+make install-dev
+
+# run full test suite
+make test
 
 # run TUI (recommended with sudo/root)
 sudo ./bin/mona
+```
+
+### Local hooks
+
+This repository uses [pre-commit](https://pre-commit.com/) hooks. Formatting
+(`shfmt`) and linting (`shellcheck`, `editorconfig-checker`) run on every
+commit. The BATS tests run automatically on `git push`. Hooks are installed by
+`make install-dev`. You can manually trigger them for all files with:
+
+```bash
+pre-commit run --all-files
+```
+
+### Run CI tasks locally
+
+The same checks used in GitHub Actions can be executed locally:
+
+```bash
+make lint
+make test
 ```
 
 ### Non-interactive/CI flags

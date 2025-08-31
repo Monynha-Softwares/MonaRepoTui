@@ -3,7 +3,7 @@ set -euo pipefail
 # shellcheck source=../../lib/common.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/lib/common.sh"
 
-run_coolify_bootstrap(){
+run_coolify_bootstrap() {
   needs_root
   # Pasta padrão para Coolify deployments/volumes
   local base="/data/coolify"
