@@ -10,6 +10,7 @@ run_base() {
   fi
 
   if [[ -f /etc/ssh/sshd_config ]]; then
+    backup_file /etc/ssh/sshd_config
     sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config || true
     sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config || true
     systemctl reload ssh || systemctl reload sshd || true
