@@ -56,3 +56,9 @@ Use `templates/cloud-init/user-data.yaml` as user-data for new VMs. It clones yo
 
 ## License
 MIT — see [LICENSE](LICENSE).
+
+
+## Included Recipes (examples)
+- `recipes/coolify-node.sh` — base + docker + coolify bootstrap (network/dirs)
+- `recipes/monitoring-node.sh` — base + docker + node_exporter + cAdvisor
+- `recipes/supabase-node.sh` — base + docker (hook para Supabase)
