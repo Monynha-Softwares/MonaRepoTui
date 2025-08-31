@@ -28,3 +28,10 @@ Extend MonaRepo by adding **modules** (idempotent bash units) and **recipes** (o
 - `set -euo pipefail` at top of every script
 - Use `trap` for cleanup if creating temp files
 - Prefer POSIX sh where feasible; when not, document Bashisms.
+
+
+## New Track: Project Installer
+- Enhance GitHub listing (paginate, filter by forks/archived, support PAT if available).
+- Teach the wizard to parse `README.md` for “Quick Start” sections and propose actions accordingly.
+- Add TUI page viewer for README (fallback to `less`).
+- Extend docker path with compose files and .env handling.

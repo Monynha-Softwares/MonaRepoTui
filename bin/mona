@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=../lib/common.sh
 . "${MONA_DIR}/lib/common.sh"
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 
 # ------------------------------ Globals ------------------------------------
 export MONA_BIN_PATH="$(readlink -f "$0")"
@@ -82,6 +82,7 @@ MENU=(
   "Configurar usuários e SSH"
   "Configurar hostname e /etc/hosts"
   "Executar receita (recipes/)"
+  "Instalar/Configurar Projeto (GitHub/Docker)"
   "Sobre & Logs"
   "Sair"
 )
@@ -260,6 +261,13 @@ flow_about(){ echo; log "MonaRepo — Monynha Softwares"; echo
   pause_any
 }
 
+
+flow_project_installer(){
+  # shellcheck source=../modules/installer/wizard.sh
+  . "${MONA_DIR}/modules/installer/wizard.sh"
+  wizard_start
+}
+
 # ---------------------------- TUI (Curses) ----------------------------------
 SEPARATOR="────────────────────────────────────────────────────────────"
 
@@ -322,8 +330,9 @@ update(){
         3) clear; flow_config_users;;
         4) clear; flow_config_hosts;;
         5) clear; flow_run_recipe;;
-        6) clear; flow_about;;
-        7) exit 0;;
+        6) clear; flow_project_installer;;
+        7) clear; flow_about;;
+        8) exit 0;;
       esac
       ;;
   esac
