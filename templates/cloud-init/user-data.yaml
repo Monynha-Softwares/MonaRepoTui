@@ -1,0 +1,26 @@
+#cloud-config
+locale: en_US.UTF-8
+timezone: Europe/Lisbon
+package_update: true
+packages: [curl, ca-certificates, git, sudo]
+
+write_files:
+  - path: /usr/local/sbin/mona-bootstrap.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      repo_dir=/opt/monarepo
+      if [ ! -d "$repo_dir/.git" ]; then
+        git clone https://github.com/Monynha-Softwares/monarepo "$repo_dir"
+      else
+        git -C "$repo_dir" pull --ff-only
+      fi
+      cd "$repo_dir"
+      # Dependencies: optional
+      command -v curl >/dev/null || apt-get update -y && apt-get install -y curl
+      # Run a recipe (adjust as needed)
+      MONA_NONINTERACTIVE=1 ./bin/mona --version || true
+
+runcmd:
+  - [/usr/local/sbin/mona-bootstrap.sh]

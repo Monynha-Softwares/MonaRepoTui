@@ -1,0 +1,19 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Python/venv (if used locally)
+.venv/
+__pycache__/
+
+# logs/tmp
+*.log
+tmp/
+dist/
+
+# Submodules vendor cache
+ui/bashsimplecurses/.git

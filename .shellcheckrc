@@ -1,0 +1,3 @@
+# Be strict but allow some practical patterns.
+disable=SC1090,SC2155
+external-sources=true

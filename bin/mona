@@ -1,0 +1,387 @@
+#!/usr/bin/env bash
+# MonaRepo — Interactive TUI bootstrapper
+set -euo pipefail
+
+VERSION="0.1.0"
+
+# ------------------------------ Globals ------------------------------------
+export MONA_BIN_PATH="$(readlink -f "$0")"
+export MONA_DIR="$(cd "$(dirname "$MONA_BIN_PATH")/.." && pwd)"
+export MONA_DRY_RUN="${MONA_DRY_RUN:-false}"
+export MONA_NONINTERACTIVE="${MONA_NONINTERACTIVE:-0}"
+
+# Arg parsing
+show_help(){
+  cat <<EOF
+MonaRepo v$VERSION
+
+Usage: ${0##*/} [--dry-run] [--help] [--version]
+
+Flags:
+  --dry-run     Show actions without applying
+  --help        Print help and exit
+  --version     Print version and exit
+Env:
+  MONA_NONINTERACTIVE=1  Single-shot non-interactive mode for CI
+EOF
+}
+
+for a in "$@"; do
+  case "$a" in
+    --help) show_help; exit 0;;
+    --version) echo "$VERSION"; exit 0;;
+    --dry-run) MONA_DRY_RUN=true;;
+    *) ;;
+  esac
+done
+
+MONA_TMP_DIR="${TMPDIR:-/tmp}/mona"
+mkdir -p "$MONA_TMP_DIR"
+
+# ------------------------------ Helpers ------------------------------------
+log()   { printf "[mona] %s\n" "$*"; }
+warn()  { printf "[mona:warn] %s\n" "$*"; } >&2
+err()   { printf "[mona:err] %s\n" "$*"; } >&2
+needs_root(){ [[ $EUID -eq 0 ]] || { err "Execute como root (sudo)."; exit 1; }; }
+color(){ local c="$1"; shift; printf "\e[%sm%s\e[0m" "$c" "$*"; }
+
+pm_detect(){
+  if command -v apt-get >/dev/null 2>&1; then echo apt; return; fi
+  if command -v dnf >/dev/null 2>&1; then echo dnf; return; fi
+  if command -v yum >/dev/null 2>&1; then echo yum; return; fi
+  if command -v pacman >/dev/null 2>&1; then echo pacman; return; fi
+  if command -v zypper >/dev/null 2>&1; then echo zypper; return; fi
+  echo unknown
+}
+
+pkg_install(){
+  local pkgs=("$@") pm
+  pm=$(pm_detect)
+  log "Instalando pacotes via $pm: ${pkgs[*]}"
+  $MONA_DRY_RUN && return 0
+  case "$pm" in
+    apt)    apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}";;
+    dnf)    dnf install -y "${pkgs[@]}";;
+    yum)    yum install -y "${pkgs[@]}";;
+    pacman) pacman -Sy --noconfirm "${pkgs[@]}";;
+    zypper) zypper --non-interactive install --no-recommends "${pkgs[@]}";;
+    *)      err "Gerenciador de pacotes não suportado"; return 1;;
+  esac
+}
+
+apply(){ if $MONA_DRY_RUN; then log "(dry-run) $*"; else eval "$*"; fi }
+
+pause_any(){ read -r -p $'Pressione Enter para voltar ao menu…\n' _ || true; }
+
+# -------------------------- bashsimplecurses --------------------------------
+SIMPLE_CURSES="${MONA_DIR}/ui/bashsimplecurses/simple_curses.sh"
+fetch_simple_curses(){
+  warn "bashsimplecurses não encontrado; tentando baixar (curl)…"
+  local dst_dir="${MONA_DIR}/ui/bashsimplecurses"; mkdir -p "$dst_dir"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "https://raw.githubusercontent.com/metal3d/bashsimplecurses/master/simple_curses.sh" \
+      -o "$dst_dir/simple_curses.sh" || true
+  fi
+}
+
+if [[ ! -f "$SIMPLE_CURSES" ]]; then
+  fetch_simple_curses
+fi
+
+# ------------------------------- ASCII art ----------------------------------
+ascii_heart(){ cat <<'HEART'
+      *****     *****
+   *********** ***********
+  ***************************
+ *****************************
+ *****************************
+  ***************************
+   *************************
+     *********************
+       *****************
+         *************
+           *********
+             *****
+               *
+HEART
+}
+
+# ----------------------------- Menu & State --------------------------------
+MENU=(
+  "Iniciar: Quick Start (detectar SO e atualizar)"
+  "Atualizar a distro (full upgrade)"
+  "Configurar rede (Netplan/NMCLI)"
+  "Configurar usuários e SSH"
+  "Configurar hostname e /etc/hosts"
+  "Executar receita (recipes/)"
+  "Sobre & Logs"
+  "Sair"
+)
+SEL=0
+
+list_recipes(){
+  local rdir="${MONA_DIR}/recipes"; mkdir -p "$rdir"
+  find "$rdir" -maxdepth 1 -type f -name '*.sh' -printf '%f\n' 2>/dev/null | sort
+}
+
+# ------------------------------ Flows ---------------------------------------
+flow_quickstart(){ needs_root; echo; log "Quick Start"; echo
+  flow_update_distro || true
+  echo
+  log "Quick Start concluído."; pause_any
+}
+
+flow_update_distro(){ needs_root; echo; log "Atualização da distro"; echo
+  local pm; pm=$(pm_detect)
+  case "$pm" in
+    apt)
+      apply "apt-get update -y"
+      apply "DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y"
+      apply "apt-get autoremove -y"
+      ;;
+    dnf|yum)
+      apply "$pm -y upgrade"
+      ;;
+    pacman)
+      apply "pacman -Syu --noconfirm"
+      ;;
+    zypper)
+      apply "zypper --non-interactive refresh"
+      apply "zypper --non-interactive update"
+      ;;
+    *)
+      err "SO não suportado para upgrade."; return 1;;
+  esac
+  log "Upgrade finalizado."; pause_any
+}
+
+flow_config_users(){ needs_root; echo; log "Configurar usuários e SSH"; echo
+  read -r -p "Novo usuário (ex.: mona): " username || true
+  [[ -n "${username:-}" ]] || { err "Usuário inválido"; return 1; }
+  read -r -p "Conceder sudo? [y/N]: " grant_sudo; grant_sudo=${grant_sudo:-N}
+  read -r -p "Adicionar ao grupo docker (se existir)? [y/N]: " add_docker; add_docker=${add_docker:-N}
+  read -r -p "Shell (padrão /bin/bash): " user_shell; user_shell=${user_shell:-/bin/bash}
+  read -r -p "Cole a chave pública SSH (ENTER para pular): " ssh_pub || true
+
+  if id -u "$username" >/dev/null 2>&1; then
+    log "Usuário já existe: $username"
+  else
+    apply "useradd -m -s '$user_shell' '$username'"
+    log "Criado usuário $username"
+  fi
+  if [[ "${grant_sudo^^}" == Y* ]]; then
+    pkg_install sudo || true
+    apply "usermod -aG sudo '$username'"
+  fi
+  if [[ "${add_docker^^}" == Y* ]] && getent group docker >/dev/null; then
+    apply "usermod -aG docker '$username'"
+  fi
+  if [[ -n "${ssh_pub:-}" ]]; then
+    apply "install -d -m 700 -o '$username' -g '$username' /home/'$username'/.ssh"
+    apply "bash -lc 'echo \"$ssh_pub\" >> /home/\"$username\"/.ssh/authorized_keys'"
+    apply "chown '$username':'$username' /home/'$username'/.ssh/authorized_keys"
+    apply "chmod 600 /home/'$username'/.ssh/authorized_keys"
+  fi
+  # SSH hardening
+  if [[ -f /etc/ssh/sshd_config ]]; then
+    apply "sed -i 's/^#\\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config"
+    apply "sed -i 's/^#\\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config"
+    apply "systemctl reload ssh || systemctl reload sshd || true"
+  fi
+  log "Usuário/SSH configurados."; pause_any
+}
+
+flow_config_hosts(){ needs_root; echo; log "Configurar hostname e /etc/hosts"; echo
+  read -r -p "Hostname (ex.: monynha-online-prod): " new_host || true
+  [[ -n "${new_host:-}" ]] || { err "Hostname inválido"; return 1; }
+  read -r -p "FQDN (ex.: monynha.online): " new_fqdn || true
+  apply "hostnamectl set-hostname '$new_host'"
+  # /etc/hosts minimal
+  if [[ -f /etc/hosts ]]; then
+    apply "cp /etc/hosts /etc/hosts.bak.mona.$(date +%s)"
+    if ! $MONA_DRY_RUN; then
+      awk -v h="$new_host" '!( ($2==h) || ($2 ~ h"\\.") )' /etc/hosts > /etc/hosts.mona || true
+      mv /etc/hosts.mona /etc/hosts || true
+    fi
+    apply "bash -lc 'echo 127.0.1.1 \"$new_host\" \"${new_host}.${new_fqdn:-localdomain}\" >> /etc/hosts'"
+  fi
+  log "Hostname/hosts configurados."; pause_any
+}
+
+flow_config_network(){ needs_root; echo; log "Configurar rede"; echo
+  local os_like=""; os_like=$( ( . /etc/os-release 2>/dev/null; echo "${ID_LIKE:-$ID}" ) || true )
+  if [[ "$os_like" == *"debian"* || "$os_like" == *"ubuntu"* ]]; then
+    if command -v netplan >/dev/null 2>&1; then
+      read -r -p "Interface (ex.: eth0): " ifc || true
+      read -r -p "Usar DHCP? [Y/n]: " use_dhcp; use_dhcp=${use_dhcp:-Y}
+      local netplan_yaml
+      if [[ "${use_dhcp^^}" == Y* ]]; then
+        netplan_yaml=$(cat <<YAML
+network:
+  version: 2
+  ethernets:
+    $ifc:
+      dhcp4: true
+YAML
+)
+      else
+        read -r -p "Endereço CIDR (ex.: 192.168.1.10/24): " addr || true
+        read -r -p "Gateway (ex.: 192.168.1.1): " gw || true
+        read -r -p "DNS (ex.: 1.1.1.1,8.8.8.8): " dns || true
+        netplan_yaml=$(cat <<YAML
+network:
+  version: 2
+  ethernets:
+    $ifc:
+      addresses: [$addr]
+      routes:
+        - to: default
+          via: $gw
+      nameservers:
+        addresses: [${dns// /}]
+YAML
+)
+      fi
+      echo
+      echo "Pré-visualização /etc/netplan/99-mona.yaml:"; echo "-----------------------------------------"; echo "$netplan_yaml"; echo "-----------------------------------------"
+      read -r -p "Aplicar? [y/N]: " ok || true
+      if [[ "${ok^^}" == Y* ]]; then
+        apply "cp /etc/netplan/99-mona.yaml /etc/netplan/99-mona.yaml.bak 2>/dev/null || true"
+        if ! $MONA_DRY_RUN; then printf "%s\n" "$netplan_yaml" > /etc/netplan/99-mona.yaml; fi
+        apply "netplan apply"
+        log "Netplan aplicado."
+      else
+        log "Cancelado pelo usuário."
+      fi
+    else
+      err "Netplan não encontrado. Considere NMCLI ou configuração manual."
+    fi
+  else
+    err "Distro não reconhecida (ID_LIKE=$os_like)."
+  fi
+  pause_any
+}
+
+flow_run_recipe(){ needs_root; echo; log "Executar receita"; echo
+  local recipes; IFS=$'\n' read -r -d '' -a recipes < <(list_recipes && printf '\0') || true
+  if ((${#recipes[@]}==0)); then warn "Nenhuma receita encontrada em recipes/"; pause_any; return; fi
+  local i=1; for r in "${recipes[@]}"; do printf "%2d) %s\n" "$i" "$r"; ((i++)); done
+  read -r -p "Escolha: " idx || true
+  if [[ "$idx" =~ ^[0-9]+$ ]] && (( idx>=1 && idx<=${#recipes[@]} )); then
+    local choice="${recipes[idx-1]}"
+    log "Rodando recipes/$choice"
+    if $MONA_DRY_RUN; then
+      log "(dry-run) bash \"${MONA_DIR}/recipes/${choice}\""; pause_any
+    else
+      bash "${MONA_DIR}/recipes/${choice}" || { err "Receita falhou"; pause_any; }
+    fi
+  fi
+}
+
+flow_about(){ echo; log "MonaRepo — Monynha Softwares"; echo
+  echo "Versão: $VERSION"
+  echo "Repo: monarepo (base)"
+  echo "UI: bashsimplecurses (vendorizado via submodule ou runtime download)"
+  echo "Boas práticas: ShellCheck, BATS, idempotência, backups antes de alterações."
+  pause_any
+}
+
+# ---------------------------- TUI (Curses) ----------------------------------
+SEPARATOR="────────────────────────────────────────────────────────────"
+
+header_window(){
+  window " " "magenta" "100%" "center"
+    append "$(printf '\e[35m❤\e[0m')  $(printf '\e[1mMonynha Softwares\e[0m') — $(printf '\e[1mMonaRepo\e[0m')"
+    addsep
+    while IFS= read -r line; do append "  ${line}"; done < <(ascii_heart)
+  endwin
+}
+
+menu_window(){
+  window "Escolha um fluxo / configuração" "blue" "100%"
+    local i
+    for i in "${!MENU[@]}"; do
+      if (( i == SEL )); then
+        append " → $(printf '\e[32m%s\e[0m' "${MENU[$i]}")"
+      else
+        append "   ${MENU[$i]}"
+      fi
+    done
+    addsep
+    append "Use ↑/↓ para navegar, Enter para escolher, Q para sair."
+  endwin
+}
+
+status_window(){
+  window "Status" "yellow" "100%"
+    append "Host: $(hostname)  |  Usuário: $(whoami)  |  Dry-run: $MONA_DRY_RUN"
+    append "$SEPARATOR"
+  endwin
+}
+
+main(){
+  header_window
+  menu_window
+  status_window
+}
+
+readKey(){ local k; IFS= read -rsn1 -t 0.2 k || true
+  if [[ "$k" == $'\e' ]]; then
+    local k2 k3; IFS= read -rsn1 -t 0.001 k2 || true; IFS= read -rsn1 -t 0.001 k3 || true
+    k+="$k2$k3"
+  fi
+  printf '%s' "$k"
+}
+
+update(){
+  local key; key=$(readKey)
+  case "$key" in
+    $'\e[A') (( SEL>0 )) && ((SEL--));;          # Up
+    $'\e[B') (( SEL<${#MENU[@]}-1 )) && ((SEL++));; # Down
+    '') ;;
+    q|Q) exit 0;;
+    $'\n')
+      case "$SEL" in
+        0) clear; flow_quickstart;;
+        1) clear; flow_update_distro;;
+        2) clear; flow_config_network;;
+        3) clear; flow_config_users;;
+        4) clear; flow_config_hosts;;
+        5) clear; flow_run_recipe;;
+        6) clear; flow_about;;
+        7) exit 0;;
+      esac
+      ;;
+  esac
+}
+
+# ------------------------------- Kickoff ------------------------------------
+if [[ "${MONA_NONINTERACTIVE}" == "1" ]]; then
+  echo "$VERSION"
+  exit 0
+fi
+
+# Try to source curses (after NONINTERACTIVE guard to keep CI simple)
+if [[ -f "$SIMPLE_CURSES" ]]; then
+  # shellcheck disable=SC1090
+  source "$SIMPLE_CURSES"
+  if [[ -t 1 ]]; then
+    main_loop -t 1
+  else
+    flow_quickstart
+  fi
+else
+  # Fallback textual menu if curses missing
+  echo "Monynha Softwares — MonaRepo (fallback sem curses)"
+  echo "1) Quick Start  2) Upgrade  3) Rede  4) Users/SSH  5) Hosts  6) Receita  0) Sair"
+  read -r -p "Escolha: " ch || true
+  case "$ch" in
+    1) flow_quickstart;;
+    2) flow_update_distro;;
+    3) flow_config_network;;
+    4) flow_config_users;;
+    5) flow_config_hosts;;
+    6) flow_run_recipe;;
+    *) exit 0;;
+  esac
+fi

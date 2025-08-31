@@ -1,0 +1,24 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck curl
+          git clone https://github.com/bats-core/bats-core /tmp/bats
+          sudo /tmp/bats/install.sh /usr/local
+      - name: Lint
+        run: make lint
+      - name: Tests
+        env:
+          MONA_NONINTERACTIVE: "1"
+        run: make test
