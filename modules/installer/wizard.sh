@@ -14,6 +14,105 @@ ensure_projects_dir(){
   apply "mkdir -p '$PROJECTS_BASE'"
 }
 
+# Try to source simple_curses if TUI reader enabled
+maybe_source_curses(){
+  local sc="${MONA_DIR:-}/ui/bashsimplecurses/simple_curses.sh"
+  if [[ "${MONA_USE_TUI_READER:-0}" == "1" && -f "$sc" ]]; then
+    # shellcheck disable=SC1090
+    source "$sc"
+    return 0
+  fi
+  return 1
+}
+
+tui_view_file(){
+  local file="$1"
+  [[ -f "$file" ]] || { warn "Arquivo não encontrado: $file"; return 1; }
+  if ! maybe_source_curses; then
+    if command -v less >/dev/null 2>&1; then less -R "$file"; else cat "$file"; fi
+    pause_any
+    return 0
+  fi
+  local -a lines
+  mapfile -t lines <"$file"
+  local top=0
+  local max=${#lines[@]}
+  local page=20
+
+  _draw(){
+    window "README (TUI) — ↑/↓ rola, Q sai" "blue" "100%"
+      local i; local end=$(( top + page ))
+      (( end > max )) && end=$max
+      for (( i=top; i<end; i++ )); do
+        append "${lines[$i]}"
+      done
+      addsep
+      append "Linhas: $((top+1))–$end de $max"
+    endwin
+  }
+
+  main(){ _draw; }
+  readKey(){ local k; IFS= read -rsn1 -t 0.2 k || true
+    if [[ "$k" == $'\e' ]]; then
+      local k2 k3; IFS= read -rsn1 -t 0.001 k2 || true; IFS= read -rsn1 -t 0.001 k3 || true
+      k+="$k2$k3"
+    fi
+    printf '%s' "$k"
+  }
+  update(){
+    local key; key=$(readKey)
+    case "$key" in
+      $'\e[A') (( top>0 )) && ((top--));;
+      $'\e[B') (( top+page<max )) && ((top++));;
+      q|Q) return 1;;
+    esac
+  }
+  main_loop -t 1 || true
+}
+
+compose_cmd_for(){
+  local dir="$1"
+  if command -v docker >/dev/null 2>&1; then
+    if docker compose version >/dev/null 2>&1; then
+      echo "docker compose"
+      return 0
+    fi
+    if command -v docker-compose >/dev/null 2>&1; then
+      echo "docker-compose"
+      return 0
+    fi
+  fi
+  echo ""
+  return 1
+}
+
+env_interactive_from_example(){
+  local dir="$1"
+  local src="$dir/.env.example"
+  local dst="$dir/.env"
+  [[ -f "$src" ]] || { err ".env.example não encontrado"; return 1; }
+  echo "Gerando $dst a partir de $src (interativo). ENTER mantém o default, espaço em branco mantém vazio."
+  [[ -f "$dst" ]] && cp "$dst" "$dst.bak.mona.$(date +%s)"
+  : > "$dst"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" =~ ^\s*# ]] || [[ -z "$line" ]]; then
+      echo "$line" >> "$dst"
+      continue
+    fi
+    # parse KEY=VALUE (tira aspas simples/duplas do default)
+    key="${line%%=*}"; def="${line#*=}"
+    def="${def%$'\r'}"
+    def="${def%\"}"; def="${def#\"}"; def="${def%\'}"; def="${def#\'}"
+    read -r -p "$key [${def}]: " val
+    if [[ -z "${val}" ]]; then
+      val="${def}"
+    fi
+    printf "%s=%s\n" "$key" "$val" >> "$dst"
+  done < "$src"
+  log ".env gerado: $dst"
+}
+
+
 # discover actions in a project checkout
 discover_actions(){
   local dir="$1"
@@ -23,6 +122,21 @@ discover_actions(){
   if [[ -f "$dir/.env.example" ]]; then
     ACTIONS+=("Copiar .env.example → .env")
     ACTION_CMDS+=("cp -n '$dir/.env.example' '$dir/.env'")
+    ACTIONS+=("Criar .env interativo (de .env.example)")
+    ACTION_CMDS+=("env_interactive_from_example '$dir'")
+  fi
+
+  local ccmd
+  ccmd=$(compose_cmd_for "$dir") || true
+  if [[ -n "$ccmd" ]] && [[ -f "$dir/docker-compose.yml" || -f "$dir/docker-compose.yaml" ]]; then
+    ACTIONS+=("$ccmd pull")
+    ACTION_CMDS+=("cd '$dir' && $ccmd pull")
+    ACTIONS+=("$ccmd up -d --remove-orphans")
+    ACTION_CMDS+=("cd '$dir' && $ccmd up -d --remove-orphans")
+    ACTIONS+=("$ccmd ps")
+    ACTION_CMDS+=("cd '$dir' && $ccmd ps")
+    ACTIONS+=("$ccmd logs -f (Ctrl+C para sair)")
+    ACTION_CMDS+=("cd '$dir' && $ccmd logs -f")
   fi
 
   if [[ -f "$dir/docker-compose.yml" || -f "$dir/docker-compose.yaml" ]]; then
@@ -83,6 +197,7 @@ run_actions_menu(){
   local dir="$1"
   discover_actions "$dir"
 
+  if [[ "${MONA_USE_TUI_READER:-0}" == "1" ]]; then tui_view_file "$dir/README.md" || true; else show_readme "$dir" || true; fi
   show_readme "$dir" || true
 
   if ((${#ACTIONS[@]}==0)); then
