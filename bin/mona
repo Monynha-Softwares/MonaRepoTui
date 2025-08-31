@@ -5,7 +5,11 @@ set -euo pipefail
 # shellcheck source=../lib/common.sh
 . "${MONA_DIR}/lib/common.sh"
 
+<<<<<<< Updated upstream
 VERSION="0.2.0"
+=======
+VERSION="0.4.0"
+>>>>>>> Stashed changes
 
 # ------------------------------ Globals ------------------------------------
 export MONA_BIN_PATH="$(readlink -f "$0")"

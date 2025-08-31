@@ -28,3 +28,20 @@ Extend MonaRepo by adding **modules** (idempotent bash units) and **recipes** (o
 - `set -euo pipefail` at top of every script
 - Use `trap` for cleanup if creating temp files
 - Prefer POSIX sh where feasible; when not, document Bashisms.
+<<<<<<< Updated upstream
+=======
+
+
+## New Track: Project Installer
+- Enhance GitHub listing (paginate, filter by forks/archived, support PAT if available).
+- Teach the wizard to parse `README.md` for “Quick Start” sections and propose actions accordingly.
+- Add TUI page viewer for README (fallback to `less`).
+- Extend docker path with compose files and .env handling.
+
+
+### Installer roadmap (next tasks)
+- Parse `mona.yaml` playbooks (YAML subset) to define guided actions (title, command, confirm, rollback).
+- Add `.env` schema validator (required keys, default values).
+- Enhance README parser to auto-propose actions from “Quick Start” sections.
+- Add multi-host inventory integration to run the same installer on several servers via SSH.
+>>>>>>> Stashed changes
