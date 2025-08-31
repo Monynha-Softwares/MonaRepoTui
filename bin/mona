@@ -217,7 +217,7 @@ flow_config_hosts() {
   apply "hostnamectl set-hostname '$new_host'"
   # /etc/hosts minimal
   if [[ -f /etc/hosts ]]; then
-    apply "cp /etc/hosts /etc/hosts.bak.mona.$(date +%s)"
+    backup_file /etc/hosts
     if ! $MONA_DRY_RUN; then
       awk -v h="$new_host" '!( ($2==h) || ($2 ~ h"\\.") )' /etc/hosts >/etc/hosts.mona || true
       mv /etc/hosts.mona /etc/hosts || true
@@ -280,7 +280,9 @@ YAML
       echo "-----------------------------------------"
       read -r -p "Aplicar? [y/N]: " ok || true
       if [[ "${ok^^}" == Y* ]]; then
-        apply "cp /etc/netplan/99-mona.yaml /etc/netplan/99-mona.yaml.bak 2>/dev/null || true"
+        if [[ -f /etc/netplan/99-mona.yaml ]]; then
+          backup_file /etc/netplan/99-mona.yaml
+        fi
         if ! $MONA_DRY_RUN; then printf "%s\n" "$netplan_yaml" >/etc/netplan/99-mona.yaml; fi
         apply "netplan apply"
         log "Netplan aplicado."
