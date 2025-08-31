@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Common helpers for MonaRepo
-set -euo pipefail
+set -Eeuo pipefail
+IFS=$'\n\t'
 
-log()   { printf "[mona] %s\n" "$*"; }
-warn()  { printf "[mona:warn] %s\n" "$*"; } >&2
-err()   { printf "[mona:err] %s\n" "$*"; } >&2
-needs_root(){ [[ $EUID -eq 0 ]] || { err "Execute como root (sudo)."; exit 1; }; }
-color(){ local c="$1"; shift; printf "\e[%sm%s\e[0m" "$c" "$*"; }
+# shellcheck source=log.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/log.sh"
 
-pm_detect(){
+needs_root() {
+  [[ $EUID -eq 0 ]] || { log_error "Execute como root (sudo)."; exit 1; }
+}
+
+pm_detect() {
   if command -v apt-get >/dev/null 2>&1; then echo apt; return; fi
   if command -v dnf >/dev/null 2>&1; then echo dnf; return; fi
   if command -v yum >/dev/null 2>&1; then echo yum; return; fi
@@ -17,27 +19,27 @@ pm_detect(){
   echo unknown
 }
 
-pkg_install(){
+pkg_install() {
   local pkgs=("$@") pm
   pm=$(pm_detect)
-  log "Instalando pacotes via $pm: ${pkgs[*]}"
+  log_info "Instalando pacotes via $pm: ${pkgs[*]}"
   [[ "${MONA_DRY_RUN:-false}" == "true" ]] && return 0
   case "$pm" in
-    apt)    apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}";;
-    dnf)    dnf install -y "${pkgs[@]}";;
-    yum)    yum install -y "${pkgs[@]}";;
-    pacman) pacman -Sy --noconfirm "${pkgs[@]}";;
-    zypper) zypper --non-interactive install --no-recommends "${pkgs[@]}";;
-    *)      err "Gerenciador de pacotes não suportado"; return 1;;
+    apt)    apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}" ;;
+    dnf)    dnf install -y "${pkgs[@]}" ;;
+    yum)    yum install -y "${pkgs[@]}" ;;
+    pacman) pacman -Sy --noconfirm "${pkgs[@]}" ;;
+    zypper) zypper --non-interactive install --no-recommends "${pkgs[@]}" ;;
+    *)      log_error "Gerenciador de pacotes não suportado"; return 1 ;;
   esac
 }
 
-apply(){ 
-  if [[ "${MONA_DRY_RUN:-false}" == "true" ]]; then 
-    log "(dry-run) $*"
-  else 
+apply() {
+  if [[ "${MONA_DRY_RUN:-false}" == "true" ]]; then
+    log_info "(dry-run) $*"
+  else
     eval "$*"
-  fi 
+  fi
 }
 
-pause_any(){ read -r -p $'Pressione Enter para voltar ao menu…\n' _ || true; }
+pause_any() { read -r -p $'Pressione Enter para voltar ao menu…\n' _ || true; }

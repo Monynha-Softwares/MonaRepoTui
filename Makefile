@@ -13,7 +13,7 @@ fmt:
 	shfmt -w bin modules recipes tests
 
 lint:
-	shellcheck -x bin/mona modules/**/*.sh
+	bash -O globstar -c 'shellcheck -x bin/mona modules/**/*.sh'
 	shfmt -d bin modules recipes tests
 
 test:

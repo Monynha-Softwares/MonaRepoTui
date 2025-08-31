@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # MonaRepo — Interactive TUI bootstrapper
-set -euo pipefail
+set -Eeuo pipefail
+IFS=$'\n\t'
 
 # Determine repo root early so other scripts can source helpers safely
 export MONA_BIN_PATH="$(readlink -f "$0")"
@@ -9,7 +10,7 @@ export MONA_DIR="$(cd "$(dirname "$MONA_BIN_PATH")/.." && pwd)"
 # shellcheck source=../lib/common.sh
 . "$MONA_DIR/lib/common.sh"
 
-VERSION="0.4.0"
+VERSION="$(cat "$MONA_DIR/VERSION")"
 
 # ------------------------------ Globals ------------------------------------
 export MONA_DRY_RUN="${MONA_DRY_RUN:-false}"
@@ -31,8 +32,8 @@ Env:
 EOF
 }
 
-for a in "$@"; do
-  case "$a" in
+while [[ $# -gt 0 ]]; do
+  case "$1" in
   --help)
     show_help
     exit 0
@@ -41,9 +42,16 @@ for a in "$@"; do
     echo "$VERSION"
     exit 0
     ;;
-  --dry-run) MONA_DRY_RUN=true ;;
-  *) ;;
+  --dry-run)
+    MONA_DRY_RUN=true
+    ;;
+  *)
+    log_error "Flag desconhecida: $1"
+    show_help
+    exit 1
+    ;;
   esac
+  shift
 done
 
 MONA_TMP_DIR="${TMPDIR:-/tmp}/mona"

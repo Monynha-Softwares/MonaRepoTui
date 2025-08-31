@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+IFS=$'\n\t'
 # shellcheck source=../../lib/common.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/lib/common.sh"
 
@@ -13,15 +14,15 @@ run_coolify_bootstrap() {
   if command -v docker >/dev/null 2>&1; then
     if ! docker network ls --format '{{.Name}}' | grep -qx "coolify"; then
       apply "docker network create coolify"
-      log "Docker network 'coolify' criada."
+      log_success "Docker network 'coolify' criada."
     else
-      log "Docker network 'coolify' já existe."
+      log_info "Docker network 'coolify' já existe."
     fi
   else
-    warn "Docker não encontrado. Execute módulo docker/install antes."
+    log_warn "Docker não encontrado. Execute módulo docker/install antes."
   fi
 
   # sysctl tuning opcional (descomentado caso precise)
   # apply "sysctl -w net.ipv4.ip_forward=1"
-  log "Coolify bootstrap concluído (pastas + network)."
+  log_info "Coolify bootstrap concluído (pastas + network)."
 }
