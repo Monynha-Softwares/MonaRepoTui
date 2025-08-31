@@ -60,7 +60,10 @@ mkdir -p "$MONA_TMP_DIR"
 # -------------------------- bashsimplecurses --------------------------------
 SIMPLE_CURSES="${MONA_DIR}/ui/bashsimplecurses/simple_curses.sh"
 fetch_simple_curses() {
-  warn "bashsimplecurses não encontrado; tentando baixar (curl)…"
+  warn "bashsimplecurses não encontrado."
+  warn "  git submodule add https://github.com/metal3d/bashsimplecurses ui/bashsimplecurses"
+  warn "  git submodule update --init --recursive"
+  warn "Tentando baixar (curl)…"
   local dst_dir="${MONA_DIR}/ui/bashsimplecurses"
   mkdir -p "$dst_dir"
   if command -v curl >/dev/null 2>&1; then
