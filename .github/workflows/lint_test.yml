@@ -1,4 +1,4 @@
-name: CI
+name: lint_test
 on:
   push:
   pull_request:
@@ -10,15 +10,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Install tools
+      - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y shellcheck curl
-          git clone https://github.com/bats-core/bats-core /tmp/bats
-          sudo /tmp/bats/install.sh /usr/local
+          sudo apt-get install -y shellcheck shfmt bats curl
+          pip install pre-commit editorconfig-checker
       - name: Lint
         run: make lint
-      - name: Tests
+      - name: Test
         env:
           MONA_NONINTERACTIVE: "1"
         run: make test

@@ -5,7 +5,7 @@ set -euo pipefail
 
 GITHUB_API="https://api.github.com"
 
-gh_list_org_repos(){
+gh_list_org_repos() {
   local org="${1:-Monynha-Softwares}"
   local per_page="${2:-100}"
   if ! command -v curl >/dev/null 2>&1; then
@@ -15,11 +15,16 @@ gh_list_org_repos(){
   # Nota: sem jq; parse simples de nomes.
   local hdr=()
   [[ -n "${GITHUB_TOKEN:-}" ]] && hdr+=(-H "Authorization: Bearer $GITHUB_TOKEN")
-  curl -fsSL "${hdr[@]}" "$GITHUB_API/orgs/$org/repos?per_page=$per_page" 2>/dev/null | \
+  curl -fsSL "${hdr[@]}" "$GITHUB_API/orgs/$org/repos?per_page=$per_page" 2>/dev/null |
+    grep -o '"full_name"[^,]*' | cut -d '"' -f4
+}
 
-gh_clone(){
+gh_clone() {
   local repo_url="$1" dest_dir="$2" branch="${3:-}"
-  [[ -n "$repo_url" && -n "$dest_dir" ]] || { err "Uso: gh_clone <repo_url> <dest_dir> [branch]"; return 1; }
+  [[ -n "$repo_url" && -n "$dest_dir" ]] || {
+    err "Uso: gh_clone <repo_url> <dest_dir> [branch]"
+    return 1
+  }
   if [[ -d "$dest_dir/.git" ]]; then
     log "Repo já existe: $dest_dir ; fazendo pull --ff-only"
     $MONA_DRY_RUN || git -C "$dest_dir" pull --ff-only
@@ -32,7 +37,7 @@ gh_clone(){
   fi
 }
 
-show_readme(){
+show_readme() {
   local dir="$1"
   [[ -n "$dir" ]] || return 0
   local f=""

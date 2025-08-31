@@ -3,7 +3,7 @@ set -euo pipefail
 # shellcheck source=../../lib/common.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/lib/common.sh"
 
-configure_nmcli(){
+configure_nmcli() {
   needs_root
   if ! command -v nmcli >/dev/null 2>&1; then
     err "nmcli não encontrado. Instale NetworkManager ou use Netplan."
@@ -11,9 +11,13 @@ configure_nmcli(){
   fi
 
   read -r -p "Interface (ex.: eth0): " ifc || true
-  [[ -n "${ifc:-}" ]] || { err "Interface inválida"; return 1; }
+  [[ -n "${ifc:-}" ]] || {
+    err "Interface inválida"
+    return 1
+  }
 
-  read -r -p "Usar DHCP? [Y/n]: " use_dhcp; use_dhcp=${use_dhcp:-Y}
+  read -r -p "Usar DHCP? [Y/n]: " use_dhcp
+  use_dhcp=${use_dhcp:-Y}
   if [[ "${use_dhcp^^}" == Y* ]]; then
     apply "nmcli con mod \"$ifc\" ipv4.method auto || nmcli con add type ethernet ifname \"$ifc\" con-name \"$ifc\" ipv4.method auto"
   else

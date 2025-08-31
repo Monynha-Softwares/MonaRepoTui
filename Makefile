@@ -1,13 +1,22 @@
 SHELL := /bin/bash
 
-.PHONY: lint test ci
+.PHONY: install-dev fmt lint test ci
+
+install-dev:
+	sudo apt-get update -y
+	sudo apt-get install -y shellcheck shfmt bats curl
+	pip install --upgrade pre-commit editorconfig-checker
+	pre-commit install --install-hooks
+	pre-commit install --hook-type pre-push --install-hooks
+
+fmt:
+	shfmt -w bin modules recipes tests
 
 lint:
-	@command -v shellcheck >/dev/null || { echo 'Install shellcheck'; exit 1; }
-	shellcheck -x bin/mona modules/**/*.sh || true
+	shellcheck -x bin/mona modules/**/*.sh
+	shfmt -d bin modules recipes tests
 
 test:
-	@command -v bats >/dev/null || { echo 'Install bats-core'; exit 1; }
 	bats -r tests
 
 ci: lint test

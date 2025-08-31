@@ -3,7 +3,7 @@ set -euo pipefail
 # shellcheck source=../../lib/common.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/lib/common.sh"
 
-run_cadvisor(){
+run_cadvisor() {
   needs_root
   if ! command -v docker >/dev/null 2>&1; then
     err "Docker não instalado. Rode modules/docker/install.sh"
