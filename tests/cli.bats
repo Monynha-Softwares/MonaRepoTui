@@ -15,3 +15,8 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage:"* ]]
 }
+
+@test "bin/mona --dry-run exits 0" {
+  run env MONA_NONINTERACTIVE=1 ./bin/mona --dry-run <<<""
+  [ "$status" -eq 0 ]
+}

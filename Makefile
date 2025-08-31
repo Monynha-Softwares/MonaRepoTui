@@ -15,8 +15,10 @@ fmt:
 lint:
 	bash -O globstar -c 'shellcheck -x bin/mona modules/**/*.sh'
 	shfmt -d bin modules recipes tests
+	ec
 
 test:
 	bats -r tests
 
 ci: lint test
+
