@@ -14,7 +14,6 @@ ensure_projects_dir(){
   apply "mkdir -p '$PROJECTS_BASE'"
 }
 
-
 # Try to source simple_curses if TUI reader enabled
 maybe_source_curses(){
   local sc="${MONA_DIR:-}/ui/bashsimplecurses/simple_curses.sh"
@@ -140,6 +139,11 @@ discover_actions(){
     ACTION_CMDS+=("cd '$dir' && $ccmd logs -f")
   fi
 
+  if [[ -f "$dir/docker-compose.yml" || -f "$dir/docker-compose.yaml" ]]; then
+    ACTIONS+=("docker compose up -d")
+    ACTION_CMDS+=("cd '$dir' && docker compose up -d")
+  fi
+
   if [[ -f "$dir/package.json" ]]; then
     if command -v pnpm >/dev/null 2>&1; then
       ACTIONS+=("pnpm install")
@@ -194,6 +198,7 @@ run_actions_menu(){
   discover_actions "$dir"
 
   if [[ "${MONA_USE_TUI_READER:-0}" == "1" ]]; then tui_view_file "$dir/README.md" || true; else show_readme "$dir" || true; fi
+  show_readme "$dir" || true
 
   if ((${#ACTIONS[@]}==0)); then
     warn "Nenhuma ação automática detectada. Consulte o README e docs do projeto."

@@ -16,8 +16,6 @@ gh_list_org_repos(){
   local hdr=()
   [[ -n "${GITHUB_TOKEN:-}" ]] && hdr+=(-H "Authorization: Bearer $GITHUB_TOKEN")
   curl -fsSL "${hdr[@]}" "$GITHUB_API/orgs/$org/repos?per_page=$per_page" 2>/dev/null | \
-    grep -E '^\s*"name":\s*"' | sed -E 's/^\s*"name":\s*"([^"]+)".*/\1/' | sort -f -u
-}
 
 gh_clone(){
   local repo_url="$1" dest_dir="$2" branch="${3:-}"

@@ -15,6 +15,3 @@ Follow these rules:
 - [ ] Add `tests/modules_base.bats` and `tests/modules_docker.bats` with smoke checks.
 - [ ] Enhance `flow_run_recipe` to support params `--set key=value` forwarding to recipes.
 - [ ] Add `docs/` with architecture diagram and usage screenshots.
-
-
-Eu gostaria que houvesse uma opção em que o usuario pudesse escolher o tipo de instaçacao do programada (a partir de um repositorio github, docker etc), ele fornecesse a fonte do recursos, ou fosse listadas por exemplos os repositorios disponiveis piublicos da minya softwares, depois o programa baixasse a fonte, lesse o projeto, por exemplo, exibindo o readme para o usuario e depois perguntando o que pretendia fazer (por exemplo, copiar e editar arquivo .env.example, executar um script etc..) e que o programa fosse acompnhando a instalaçao do usuario, como um wrapper.

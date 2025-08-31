@@ -62,9 +62,6 @@ MIT — see [LICENSE](LICENSE).
 - `recipes/coolify-node.sh` — base + docker + coolify bootstrap (network/dirs)
 - `recipes/monitoring-node.sh` — base + docker + node_exporter + cAdvisor
 - `recipes/supabase-node.sh` — base + docker (hook para Supabase)
-<<<<<<< Updated upstream
-=======
-
 
 ## Project Installer (Wizard)
 Use the TUI option **“Instalar/Configurar Projeto (GitHub/Docker)”** to:
@@ -74,10 +71,8 @@ Use the TUI option **“Instalar/Configurar Projeto (GitHub/Docker)”** to:
 
 Logs are stored in `~/.mona/logs` (or `$MONA_LOG_DIR`). `--dry-run` prints commands without executing.
 
-
 ### Installer extras (v0.4.0)
 - **GitHub PAT**: set `GITHUB_TOKEN` to avoid rate limits and access private repos.
 - **Interactive `.env`**: when a project has `.env.example`, choose “Criar .env interativo” to fill values key-by-key.
 - **Docker Compose advanced**: auto-detects `docker compose` (plugin) or `docker-compose`; offers `pull`, `up -d --remove-orphans`, `ps`, `logs -f`.
 - **TUI README viewer** (experimental): set `MONA_USE_TUI_READER=1` to view README inside the TUI; otherwise falls back to `less`.
->>>>>>> Stashed changes
